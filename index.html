@@ -541,6 +541,10 @@ footer a:hover{color:#7FB6EE}
         <label for="message">Message</label>
         <textarea id="message" name="message" placeholder="What would you like to improve?"></textarea>
       </div>
+      <div class="field full" aria-hidden="true" style="position:absolute;left:-9999px;width:1px;height:1px;overflow:hidden">
+        <label for="botcheck">Do not fill this in</label>
+        <input id="botcheck" name="botcheck" type="checkbox" tabindex="-1" autocomplete="off">
+      </div>
       <div class="consent">
         <input id="consent" name="consent" type="checkbox" required>
         <label for="consent" style="font-weight:400">I agree that In &amp; Outbound may contact me about this request and store the details I have provided.</label>
@@ -604,21 +608,74 @@ footer a:hover{color:#7FB6EE}
   });
 
   var form=document.getElementById('proposal'),status=document.getElementById('status');
-  form.addEventListener('submit',function(e){
+  /* ----------------------------------------------------------
+     CONFIGURACIÓN DEL FORMULARIO
+     GitHub Pages es estático: no ejecuta PHP ni Node.
+     El envío se hace con un servicio de formularios.
+
+     1. Entra a https://web3forms.com
+     2. Escribe info@inandoutboundservices.com y recibirás una Access Key
+     3. Pega esa clave abajo. Nada más que configurar.
+
+     ¿Prefieres Formspree? Cambia FORM_ENDPOINT por tu URL
+     (https://formspree.io/f/XXXXXXX) y deja ACCESS_KEY vacío.
+  ---------------------------------------------------------- */
+  var FORM_ENDPOINT = 'https://api.web3forms.com/submit';
+  var ACCESS_KEY    = '161aef21-9423-4b7d-8443-48e2f1f3f074';
+
+  var btn = form.querySelector('button[type="submit"]');
+
+  function show(msg, ok){
+    status.hidden = false;
+    status.style.borderLeftColor = ok ? '#1B7FE0' : '#0B2342';
+    status.textContent = msg;
+  }
+
+  form.addEventListener('submit', function(e){
     e.preventDefault();
-    var invalid=form.querySelector(':invalid');
+
+    var invalid = form.querySelector(':invalid');
     if(invalid){
-      status.hidden=false;
-      status.textContent='Some required details are missing. Please complete the highlighted fields and send again.';
+      show('Some required details are missing. Please complete the highlighted fields and send again.', false);
       invalid.focus();
       return;
     }
-    status.hidden=false;
-    status.textContent='Request sent. We will reply within 48 business hours from info@inandoutboundservices.com.';
-    form.reset();
+
+    if(ACCESS_KEY === 'PEGA_AQUI_TU_ACCESS_KEY' && FORM_ENDPOINT.indexOf('web3forms') > -1){
+      show('The form is not connected yet. Please email info@inandoutboundservices.com or message us on WhatsApp.', false);
+      return;
+    }
+
+    var data = new FormData(form);
+    if(ACCESS_KEY) data.append('access_key', ACCESS_KEY);
+    data.append('subject', 'New proposal request — ' + (data.get('company') || 'In & Outbound'));
+    data.append('from_name', 'In & Outbound website');
+    data.append('replyto', data.get('email') || '');
+
+    var original = btn.textContent;
+    btn.disabled = true;
+    btn.textContent = 'Sending...';
+    show('Sending your request...', true);
+
+    fetch(FORM_ENDPOINT, { method:'POST', headers:{ 'Accept':'application/json' }, body:data })
+      .then(function(r){ return r.json().catch(function(){ return { success:r.ok }; }); })
+      .then(function(d){
+        if(d.success || d.ok){
+          show('Request sent. We will reply within 48 business hours.', true);
+          form.reset();
+        }else{
+          show('We could not send your request. Please email info@inandoutboundservices.com directly.', false);
+        }
+      })
+      .catch(function(){
+        show('Connection problem. Please email info@inandoutboundservices.com or message us on WhatsApp.', false);
+      })
+      .finally(function(){
+        btn.disabled = false;
+        btn.textContent = original;
+      });
   });
 })();
 </script>
-  
 </body>
 </html>
